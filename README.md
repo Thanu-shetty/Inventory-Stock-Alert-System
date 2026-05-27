@@ -117,19 +117,6 @@ http://127.0.0.1:5000
 * User login and registration system
 * Session management
 
----
-
-# 📸 Screenshots
-
-You can add screenshots here later:
-
-* Dashboard
-* Inventory Page
-* Alerts Page
-* Login Page
-* Transactions Page
-
----
 
 # 🔒 Security Features
 
@@ -138,7 +125,6 @@ You can add screenshots here later:
 * Secure database storage
 * Input validation
 
----
 
 # 📌 Future Improvements
 
@@ -149,7 +135,6 @@ You can add screenshots here later:
 * Admin Dashboard Analytics
 * Role-Based Access Control
 
----
 
 # 👨‍💻 Author
 
