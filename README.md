@@ -4,7 +4,6 @@ An Inventory Management and Stock Alert System built using Python, Flask, SQLite
 
 This project helps businesses manage inventory efficiently by tracking stock levels, monitoring transactions, and generating low-stock alerts.
 
----
 
 # 🚀 Features
 
@@ -19,7 +18,6 @@ This project helps businesses manage inventory efficiently by tracking stock lev
 * ✅ Responsive Web Interface
 * ✅ Simple and User-Friendly Design
 
----
 
 # 🛠️ Technologies Used
 
@@ -29,7 +27,6 @@ This project helps businesses manage inventory efficiently by tracking stock lev
 * HTML5
 * CSS3
 
----
 
 # 📂 Project Structure
 
@@ -59,7 +56,6 @@ Inventory-Stock-Alert-System/
 └── README.md
 ```
 
----
 
 # ⚙️ Installation
 
