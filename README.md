@@ -140,8 +140,6 @@ http://127.0.0.1:5000
 
 Developed by Thanishka S
 
----
-
 # ⭐ Support
 
 If you like this project, give it a ⭐ on GitHub.
