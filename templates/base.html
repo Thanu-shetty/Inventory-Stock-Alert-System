@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Stock Alert System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand">
+                <i class="fas fa-boxes me-2"></i>
+                Inventory Stock Alert System
+            </span>
+            <div class="d-flex">
+                <span class="text-light me-3">
+                    <i class="fas fa-user me-1"></i>
+                    {{ current_user.username }}
+                </span>
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" href="/">
+                                <i class="fas fa-chart-line me-2"></i>Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/inventory">
+                                <i class="fas fa-warehouse me-2"></i>Inventory
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/alerts">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Alerts
+                                <span class="badge bg-danger" id="alertBadge" style="display: none;">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/transactions">
+                                <i class="fas fa-history me-2"></i>Transactions
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto px-md-4">
+                <div class="pt-3 pb-2 mb-3">
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Update Stock Modal -->
+    <div class="modal fade" id="updateStockModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Stock</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="updateProductId">
+                    <div class="mb-3">
+                        <label>Product</label>
+                        <input type="text" class="form-control" id="updateProductName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label>Transaction Type</label>
+                        <select class="form-select" id="transactionType">
+                            <option value="in">📥 Add Stock</option>
+                            <option value="out">📤 Remove Stock</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Quantity</label>
+                        <input type="number" class="form-control" id="transactionQuantity" required min="1">
+                    </div>
+                    <div class="mb-3">
+                        <label>Reason</label>
+                        <input type="text" class="form-control" id="transactionReason" placeholder="e.g., New shipment">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="updateStock()">Update</button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Set Thresholds Modal -->
+    <div class="modal fade" id="thresholdModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Set Alert Thresholds</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="thresholdProductId">
+                    <div class="mb-3">
+                        <label>Product</label>
+                        <input type="text" class="form-control" id="thresholdProductName" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label>Minimum Threshold</label>
+                        <input type="number" class="form-control" id="minThreshold" required>
+                        <small>Alert when stock falls below this value</small>
+                    </div>
+                    <div class="mb-3">
+                        <label>Maximum Threshold</label>
+                        <input type="number" class="form-control" id="maxThreshold" required>
+                        <small>Alert when stock exceeds this value</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="saveThresholds()">Save</button>
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateStock() {
+            const productId = $('#updateProductId').val();
+            const quantity = parseInt($('#transactionQuantity').val());
+            const type = $('#transactionType').val();
+            const reason = $('#transactionReason').val();
+
+            if (!quantity || quantity <= 0) {
+                showToast('Please enter a valid quantity', 'danger');
+                return;
+            }
+
+            $.ajax({
+                url: `/api/products/${productId}/stock`,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ quantity, type, reason }),
+                success: function (response) {
+                    showToast(`Stock updated to ${response.current_stock} units`);
+                    $('#updateStockModal').modal('hide');
+                    location.reload();
+                },
+                error: function (xhr) {
+                    showToast(xhr.responseJSON?.error || 'Error updating stock', 'danger');
+                }
+            });
+        }
+
+        function saveThresholds() {
+            const productId = $('#thresholdProductId').val();
+            const minThreshold = parseInt($('#minThreshold').val());
+            const maxThreshold = parseInt($('#maxThreshold').val());
+
+            $.ajax({
+                url: `/api/products/${productId}/thresholds`,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify({ min_threshold: minThreshold, max_threshold: maxThreshold }),
+                success: function () {
+                    showToast('Thresholds updated successfully');
+                    $('#thresholdModal').modal('hide');
+                    location.reload();
+                },
+                error: function () {
+                    showToast('Error updating thresholds', 'danger');
+                }
+            });
+        }
+
+        function showToast(message, type = 'success') {
+            const bgColor = type === 'success' ? 'success' : 'danger';
+            const toast = `
+                <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;">
+                    <div class="toast show" role="alert">
+                        <div class="toast-header bg-${bgColor} text-white">
+                            <strong class="me-auto">Notification</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">${message}</div>
+                    </div>
+                </div>
+            `;
+            $('body').append(toast);
+            setTimeout(() => $('.toast').remove(), 3000);
+        }
+
+        function openUpdateModal(id, name) {
+            $('#updateProductId').val(id);
+            $('#updateProductName').val(name);
+            $('#updateStockModal').modal('show');
+        }
+
+        function openThresholdModal(id, name, minTh, maxTh) {
+            $('#thresholdProductId').val(id);
+            $('#thresholdProductName').val(name);
+            $('#minThreshold').val(minTh);
+            $('#maxThreshold').val(maxTh);
+            $('#thresholdModal').modal('show');
+        }
+
+        function resolveAlert(alertId) {
+            $.ajax({
+                url: `/api/alerts/${alertId}/resolve`,
+                method: 'PUT',
+                success: function () {
+                    showToast('Alert resolved successfully');
+                    location.reload();
+                }
+            });
+        }
+
+        function updateAlertBadge() {
+            $.get('/api/alerts/active', function (alerts) {
+                if (alerts.length > 0) {
+                    $('#alertBadge').text(alerts.length).show();
+                } else {
+                    $('#alertBadge').hide();
+                }
+            });
+        }
+
+        $(document).ready(() => {
+            updateAlertBadge();
+        });
+    </script>
+</body>
+
+</html>

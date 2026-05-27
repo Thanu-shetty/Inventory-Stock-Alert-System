@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Transaction History</h2>
+
+<div class="table-responsive">
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>Date & Time</th>
+                <th>Product</th>
+                <th>Type</th>
+                <th>Quantity</th>
+                <th>User</th>
+                <th>Reason</th>
+            </tr>
+        </thead>
+        <tbody id="transactionsTable"></tbody>
+    </table>
+</div>
+
+<script>
+    function loadTransactions() {
+        $.get('/api/transactions/recent', function (transactions) {
+            const tbody = $('#transactionsTable');
+            tbody.empty();
+
+            if (transactions.length === 0) {
+                tbody.html('<tr><td colspan="6" class="text-center">No transactions yet</td></tr>');
+                return;
+            }
+
+            transactions.forEach(t => {
+                const typeBadge = t.type === 'in' ?
+                    '<span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>Stock In</span>' :
+                    '<span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>Stock Out</span>';
+
+                tbody.append(`
+                    <tr>
+                        <td>${t.timestamp}</td>
+                        <td><strong>${t.product_name}</strong></td>
+                        <td>${typeBadge}</td>
+                        <td class="${t.type === 'in' ? 'text-success' : 'text-danger'} fw-bold">${t.quantity}</td>
+                        <td><i class="fas fa-user me-1"></i>${t.username || 'system'}</td>
+                        <td>${t.reason || '-'}</td>
+                    </tr>
+                `);
+            });
+        });
+    }
+
+    $(document).ready(() => {
+        loadTransactions();
+        setInterval(loadTransactions, 10000);
+    });
+</script>
+{% endblock %}

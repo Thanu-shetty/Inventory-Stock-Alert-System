@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Active Alerts</h2>
+
+<div id="alertsList"></div>
+
+<script>
+    function loadAlerts() {
+        $.get('/api/alerts/active', function (alerts) {
+            const container = $('#alertsList');
+            container.empty();
+
+            if (alerts.length === 0) {
+                container.html(`
+                    <div class="alert alert-success text-center">
+                        <i class="fas fa-check-circle fa-3x mb-3"></i>
+                        <h4>No Active Alerts!</h4>
+                        <p>All inventory levels are within specified thresholds.</p>
+                    </div>
+                `);
+                return;
+            }
+
+            alerts.forEach(alert => {
+                container.append(`
+                    <div class="card mb-3 border-danger">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title">
+                                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                                        ${alert.product_name}
+                                    </h5>
+                                    <p class="card-text">${alert.message}</p>
+                                    <small class="text-muted">
+                                        Created: ${new Date(alert.created_at).toLocaleString()}
+                                    </small>
+                                </div>
+                                <button class="btn btn-success" onclick="resolveAlert(${alert.id})">
+                                    <i class="fas fa-check me-2"></i>Resolve
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `);
+            });
+        });
+    }
+
+    $(document).ready(() => {
+        loadAlerts();
+        setInterval(loadAlerts, 5000);
+    });
+</script>
+{% endblock %}

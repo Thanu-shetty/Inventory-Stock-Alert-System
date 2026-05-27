@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard Overview</h2>
+
+<div class="row mb-4" id="statsCards">
+    <!-- Stats will load here -->
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-bar me-2"></i>Stock Levels by Product</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="stockChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-pie me-2"></i>Category Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-trophy me-2"></i>Top Selling Products</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="topProductsTable">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Units Sold</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-bell me-2"></i>Active Alerts</h5>
+            </div>
+            <div class="card-body">
+                <div id="alertsList"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let stockChart, categoryChart;
+
+    function loadStats() {
+        $.get('/api/dashboard/stats', function (data) {
+            $('#statsCards').html(`
+                <div class="col-md-3">
+                    <div class="card text-center stat-card">
+                        <div class="card-body">
+                            <i class="fas fa-box fa-2x text-primary"></i>
+                            <h3 class="mt-2">${data.total_products}</h3>
+                            <p class="text-muted">Total Products</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center stat-card">
+                        <div class="card-body">
+                            <i class="fas fa-cubes fa-2x text-success"></i>
+                            <h3 class="mt-2">${data.total_stock}</h3>
+                            <p class="text-muted">Total Stock</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center stat-card">
+                        <div class="card-body">
+                            <i class="fas fa-dollar-sign fa-2x text-warning"></i>
+                            <h3 class="mt-2">$${data.total_value.toLocaleString()}</h3>
+                            <p class="text-muted">Inventory Value</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center stat-card">
+                        <div class="card-body">
+                            <i class="fas fa-bell fa-2x text-danger"></i>
+                            <h3 class="mt-2">${data.active_alerts}</h3>
+                            <p class="text-muted">Active Alerts</p>
+                        </div>
+                    </div>
+                </div>
+            `);
+
+            updateCategoryChart(data.categories);
+            updateTopProducts(data.top_products);
+            loadAlerts();
+        });
+    }
+
+    function updateCategoryChart(categories) {
+        const ctx = document.getElementById('categoryChart').getContext('2d');
+        if (categoryChart) categoryChart.destroy();
+
+        categoryChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: categories.map(c => c.name),
+                datasets: [{
+                    data: categories.map(c => c.total),
+                    backgroundColor: ['#4361ee', '#06d6a0', '#ef476f', '#ffd166', '#118ab2']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+
+    function updateStockChart() {
+        $.get('/api/products', function (products) {
+            const ctx = document.getElementById('stockChart').getContext('2d');
+            if (stockChart) stockChart.destroy();
+
+            stockChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: products.map(p => p.name.substring(0, 15)),
+                    datasets: [
+                        {
+                            label: 'Current Stock',
+                            data: products.map(p => p.current_stock),
+                            backgroundColor: '#4361ee',
+                            borderRadius: 5
+                        },
+                        {
+                            label: 'Min Threshold',
+                            data: products.map(p => p.min_threshold),
+                            backgroundColor: '#ef476f',
+                            borderRadius: 5
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: 'Quantity' } } }
+                }
+            });
+        });
+    }
+
+    function updateTopProducts(products) {
+        const tbody = $('#topProductsTable tbody');
+        tbody.empty();
+        products.forEach(p => {
+            tbody.append(`<tr><td><strong>${p.name}</strong></td><td>${p.sold} units</td>`);
+        });
+    }
+
+    function loadAlerts() {
+        $.get('/api/alerts/active', function (alerts) {
+            const container = $('#alertsList');
+            container.empty();
+
+            if (alerts.length === 0) {
+                container.html('<div class="alert alert-success text-center">✅ No active alerts! All inventory levels are within thresholds.</div>');
+                return;
+            }
+
+            alerts.forEach(alert => {
+                container.append(`
+                    <div class="alert alert-danger alert-dismissible fade show">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>${alert.product_name}</strong> - ${alert.message}
+                        <button type="button" class="btn-close" onclick="resolveAlert(${alert.id})"></button>
+                    </div>
+                `);
+            });
+        });
+    }
+
+    $(document).ready(() => {
+        loadStats();
+        updateStockChart();
+
+        setInterval(() => {
+            loadStats();
+            updateStockChart();
+        }, 10000);
+    });
+</script>
+
+<style>
+    .stat-card {
+        transition: transform 0.3s;
+        cursor: pointer;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .card {
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, #4361ee, #3a56d4);
+        color: white;
+    }
+</style>
+{% endblock %}
